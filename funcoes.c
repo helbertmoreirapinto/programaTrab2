@@ -3,7 +3,7 @@
 void lista_adjacencias(char* nome_file_bin) {
     FILE* file_bin = fopen(nome_file_bin, "rb");
     if(!file_bin || !file_bin_integro(file_bin)) {
-        printf("Falha na execução da funcionalidade.");
+        printf("Falha na execuÃ§Ã£o da funcionalidade.");
         return;
     }
     rewind(file_bin);

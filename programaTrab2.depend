@@ -1,7 +1,8 @@
 # depslib dependency file v1.0
-1575349652 source:d:\users\helbert\google drive\eng comp\4 - estrutura de dados iii\trabalho\programatrab2\main.c
-	<stdio.h>
+1575502683 source:d:\users\helbert\google drive\eng comp\4 - estrutura de dados iii\trabalho\programatrab2\main.c
 	<stdlib.h>
 	<string.h>
+	<stdio.h>
+	<ctype.h>
 	<stdbool.h>
 

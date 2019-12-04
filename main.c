@@ -534,7 +534,6 @@ void exibe_grafo(Vertice_PTR elem) {
 void scan_quote_string(char *str) {
     char R;
     while((R = getchar()) != EOF && isspace(R)); // ignorar espaços, \r, \n...
-    while((R = getchar()) != EOF && isspace(R)); // ignorar espa�os, \r, \n...
     if(R == 'N' || R == 'n') { // campo NULO
         getchar();
         getchar();
@@ -542,12 +541,10 @@ void scan_quote_string(char *str) {
         strcpy(str, ""); // copia string vazia
     } else if(R == '\"') {
         if(scanf("%[^\"]", str) != 1) { // ler até o fechamento das aspas
-        if(scanf("%[^\"]", str) != 1) { // ler at� o fechamento das aspas
             strcpy(str, "");
         }
         getchar(); // ignorar aspas fechando
     } else if(R != EOF) { // vc tá tentando ler uma string que não tá entre aspas! Fazer leitura normal %s então...
-    } else if(R != EOF) { // vc t� tentando ler uma string que n�o t� entre aspas! Fazer leitura normal %s ent�o...
         str[0] = R;
         scanf("%s", &str[1]);
     } else { // EOF
