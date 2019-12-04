@@ -46,15 +46,16 @@ typedef struct {
 } ArestaList;
 typedef ArestaList* ArestaList_PTR;
 
-
-
-
-
-
-
-
-
-
+typedef struct {
+    char cidadeDest[20];
+    char estadoDest[3];
+    char cidadeAnt[20];
+    char estadoAnt[3];
+    int distancia;
+    bool analisado;
+} Antecessor;
+typedef Antecessor* Antecessor_PTR;
+typedef Antecessor** Antecessor_PTR_PTR;
 
 
 bool file_integro(FILE*);
@@ -63,33 +64,34 @@ void inserir_lista_adj(Vertice_PTR_PTR, Vertice_PTR, Vertice_PTR);
 void prim(char*, char*, char*);
 void exibe_grafo(Vertice_PTR);
 void scan_quote_string(char*);
-void ordena_arestas(ArestaList_PTR);
-
-
-
-
-
-
+void dijkstra(char*, char*, char*);
 
 int main() {
     int funcao;
-    char param1[50];
-    char param2[50];
-    char param3[50];
+    char nome_file[50];
+    char tipo_campo[50];
+    char valor_campo[50];
 
     fscanf(stdin, "%d", &funcao);
 
     switch (funcao) {
     case LISTA_ADJ:
-        fscanf(stdin, "%s", param1);
-        Vertice_PTR lista = lista_adj(param1);
+        fscanf(stdin, "%s", nome_file);
+        Vertice_PTR lista = lista_adj(nome_file);
         exibe_grafo(lista);
         break;
+    case DIJKSTRA:
+        fscanf(stdin, "%s", nome_file);
+        fscanf(stdin, "%s", tipo_campo);
+        scan_quote_string(valor_campo);
+        dijkstra(nome_file, tipo_campo, valor_campo);
+        break;
+        break;
     case PRIM:
-        fscanf(stdin, "%s", param1);
-        fscanf(stdin, "%s", param2);
-        scan_quote_string(param3);
-        prim(param1, param2, param3);
+        fscanf(stdin, "%s", nome_file);
+        fscanf(stdin, "%s", tipo_campo);
+        scan_quote_string(valor_campo);
+        prim(nome_file, tipo_campo, valor_campo);
         break;
     }
     return 0;
@@ -114,19 +116,20 @@ Vertice_PTR lista_adj(char* nome_file) {
     char* aux;
 
     for (int i = 0; i < num_arestas; i++) {
-        aux = calloc(TAM_REG - TAM_CAMPO_FIXO, sizeof(Vertice));
         elem_1 = calloc(1, sizeof(Vertice));
         elem_2 = calloc(1, sizeof(Vertice));
 
         fread(elem_1->estado, 2 * sizeof(char), 1, file_bin);
+        fread(elem_2->estado, 2 * sizeof(char), 1, file_bin);
+        fread(&elem_1->distancia, sizeof(int), 1, file_bin);
+        elem_2->distancia = elem_1->distancia;
+
+        aux = calloc(TAM_REG - TAM_CAMPO_FIXO, sizeof(Vertice));
+        fread(aux, (TAM_REG - TAM_CAMPO_FIXO) * sizeof(char), 1, file_bin);
         if (elem_1->estado[0] == REMOVIDO) {
             i--;
             continue;
         }
-        fread(elem_2->estado, 2 * sizeof(char), 1, file_bin);
-        fread(&elem_1->distancia, sizeof(int), 1, file_bin);
-        elem_2->distancia = elem_1->distancia;
-        fread(aux, (TAM_REG - TAM_CAMPO_FIXO) * sizeof(char), 1, file_bin);
 
         tam_cidade_orig = strcspn(&aux[0], "|");
         strncpy(elem_1->cidade, &aux[0], tam_cidade_orig);
@@ -258,6 +261,138 @@ void inserir_lista_adj(Vertice_PTR_PTR lista, Vertice_PTR A, Vertice_PTR B) {
     }
 }
 
+void dijkstra(char* nome_file, char* campo, char* valor) {
+    Vertice_PTR lista = lista_adj(nome_file);
+    if (!lista) {
+        return;
+    }
+    FILE* file_bin = fopen(nome_file, "rb");
+    fseek(file_bin, 1 * sizeof(char), SEEK_SET);
+    int numvertices;
+    fread(&numvertices, sizeof(int), 1, file_bin);
+    fclose(file_bin);
+
+    Antecessor_PTR_PTR antec = calloc(numvertices-1, sizeof(Antecessor_PTR));
+    for(int i = 0; i< numvertices-1; i++) {
+        antec[i] = calloc(1,sizeof(Antecessor));
+    }
+    Vertice_PTR elem = lista;
+    bool achou_vertice = false;
+    Vertice_PTR origem;
+    int i = 0;
+
+    // procurando origem e setando dados no vetor de antecessor
+    while(elem) {
+        if(!strcmp(campo, "cidadeOrigem") && !strcmp(elem->cidade, valor)) {
+            achou_vertice = true;
+        } else {
+            strcpy(antec[i]->cidadeDest, elem->cidade);
+            strcpy(antec[i]->estadoDest, elem->estado);
+            antec[i]->distancia = -1;
+            i++;
+        }
+        elem = elem->proxLista;
+    }
+
+    if(!achou_vertice) {
+        return;
+    }
+
+    // iniciando algoritmo pela origem
+    elem = lista;
+    while(elem) {
+        if(!strcmp(elem->cidade, valor)) {
+            break;
+        }
+        elem = elem->proxLista;
+    }
+    origem = elem;
+    elem = elem->adjacente;
+    while(elem) {
+        for(int i = 0; i < numvertices-1; i++) {
+            if(!strcmp(elem->cidade, antec[i]->cidadeDest)) {
+                strcpy(antec[i]->cidadeAnt, origem->cidade);
+                strcpy(antec[i]->estadoAnt, origem->estado);
+                antec[i]->distancia = elem->distancia;
+                antec[i]->analisado = false;
+                break;
+            }
+        }
+        elem = elem->adjacente;
+    }
+
+    bool continuar_analisando = false;
+
+    if(numvertices > 1)
+        continuar_analisando = true;
+    // aqui todos adjacentes a origem estao iniciados
+
+    int auxIndice, nova_dist;
+
+    // nos a ser analisados numvertices - 1
+    // reorganizar for
+    while(continuar_analisando) {
+
+        //pegando um elem pra ser analisado -> auxIndice
+        for(int j = 0; j < numvertices-1; j++) {
+            if(!antec[j]->analisado && antec[j]->distancia != -1) {
+                auxIndice = j;
+                break;
+            }
+        }
+
+        //procurando elemento a ser analisado na lista encadeada
+        elem = lista;
+        while(elem) {
+            if(!strcmp(elem->cidade, antec[auxIndice]->cidadeDest)) {
+                break;
+            }
+            elem = elem->proxLista;
+        }
+
+        // analisando elem
+        elem = elem->adjacente;
+        while(elem) {
+            for(int j = 0; j < numvertices-1; j++) {
+                if(strcmp(elem->cidade, antec[j]->cidadeDest)) {
+                    continue;
+                }
+                nova_dist = antec[auxIndice]->distancia + elem->distancia;
+
+                // nova dist eh menor ou no que ngm chegou ainda
+                if(nova_dist < antec[j]->distancia || antec[j]->distancia == -1) {
+                    strcpy(antec[j]->cidadeAnt, antec[auxIndice]->cidadeDest);
+                    strcpy(antec[j]->estadoAnt, antec[auxIndice]->estadoDest);
+                    antec[j]->distancia = nova_dist;
+                    antec[j]->analisado = false;
+                }
+                break;
+            }
+
+            elem = elem->adjacente;
+            if(elem && !strcmp(elem->cidade, valor))
+                elem = elem->adjacente;
+
+        }
+        antec[auxIndice]->analisado = true;
+
+        continuar_analisando = false;
+        for(int i = 0; i < numvertices-1; i++) {
+            if(!antec[i]->analisado) {
+                continuar_analisando = true;
+                break;
+            }
+        }
+    }
+
+    for(int i = 0; i < numvertices-1; i++) {
+        if(!strcmp(antec[i]->cidadeDest, origem->cidade))
+            continue;
+        printf("%s %s %s %s %d %s %s\n", origem->cidade, origem->estado, antec[i]->cidadeDest, antec[i]->estadoDest, antec[i]->distancia, antec[i]->cidadeAnt, antec[i]->estadoAnt);
+    }
+
+}
+
 void prim(char* nome_file, char* campo, char* valor) {
     Vertice_PTR lista = lista_adj(nome_file);
     if (!lista) {
@@ -362,69 +497,13 @@ void prim(char* nome_file, char* campo, char* valor) {
         conjVertices->listaVertices = (Vertice_PTR_PTR) realloc(conjVertices->listaVertices, ++(conjVertices->tam) * sizeof(Vertice_PTR));
         conjVertices->listaVertices[conjVertices->tam - 1] = dest;
 
-//        aresta = calloc(1, sizeof(Aresta));
         orig = conjAuxArestas->listaAresta[menor_ind]->orig;
         dest = conjAuxArestas->listaAresta[menor_ind]->dest;
 
         inserir_lista_adj(&lista_min, orig, dest);
 
-//        conjArestas->listaAresta = (Aresta_PTR_PTR) realloc(conjArestas->listaAresta, ++(conjArestas->tam) * sizeof(Aresta_PTR));
-//        conjArestas->listaAresta[conjArestas->tam - 1] = aresta;
     }
     exibe_grafo(lista_min);
-//    ordena_arestas(conjArestas);
-//
-//    elem = lista;
-//    while(elem) {
-//        printf("%s %s",elem->cidade, elem->estado);
-//        for(int i = 0; i < conjArestas->tam; i++) {
-//            if(!strcmp(elem->cidade, conjArestas->listaAresta[i]->orig->cidade)) {
-//                printf(" %s %s %d",conjArestas->listaAresta[i]->dest->cidade, conjArestas->listaAresta[i]->dest->estado, conjArestas->listaAresta[i]->dest->distancia);
-//                if(strlen(conjArestas->listaAresta[i]->dest->tempo) > 0) {
-//                    printf(" %s",conjArestas->listaAresta[i]->dest->tempo);
-//                }
-//            }
-//        }
-//        printf("\n");
-//        elem = elem->proxLista;
-//    }
-
-}
-
-void ordena_arestas(ArestaList_PTR conj) {
-    int j;
-    Aresta_PTR aux;
-
-    for(int p = 0; p < conj->tam; p++) {
-        printf("%s %s\n", conj->listaAresta[p]->orig->cidade, conj->listaAresta[p]->dest->cidade);
-    }
-
-    printf("\n");
-
-
-    for(int i = 1; i > conj->tam; i++) {
-        j = i;
-        while( (j != 0) && (strcmp(conj->listaAresta[j]->dest->cidade, conj->listaAresta[j - 1]->dest->cidade) > 0) ) {
-            aux = conj->listaAresta[j];
-            conj->listaAresta[j] = conj->listaAresta[j - 1];
-            conj->listaAresta[j - 1] = aux;
-            j--;
-        }
-    }
-
-    for(int i = 1; i > conj->tam; i++) {
-        j = i;
-        while( (j != 0) && (strcmp(conj->listaAresta[j]->orig->cidade, conj->listaAresta[j - 1]->orig->cidade) > 0) ) {
-            aux = conj->listaAresta[j];
-            conj->listaAresta[j] = conj->listaAresta[j - 1];
-            conj->listaAresta[j - 1] = aux;
-            j--;
-        }
-    }
-
-    for(int p = 0; p < conj->tam; p++) {
-        printf("%s %s\n",conj->listaAresta[p]->orig->cidade, conj->listaAresta[p]->dest->cidade);
-    }
 }
 
 bool file_integro(FILE* file_bin) {
@@ -455,6 +534,7 @@ void exibe_grafo(Vertice_PTR elem) {
 void scan_quote_string(char *str) {
     char R;
     while((R = getchar()) != EOF && isspace(R)); // ignorar espaços, \r, \n...
+    while((R = getchar()) != EOF && isspace(R)); // ignorar espa�os, \r, \n...
     if(R == 'N' || R == 'n') { // campo NULO
         getchar();
         getchar();
@@ -462,10 +542,12 @@ void scan_quote_string(char *str) {
         strcpy(str, ""); // copia string vazia
     } else if(R == '\"') {
         if(scanf("%[^\"]", str) != 1) { // ler até o fechamento das aspas
+        if(scanf("%[^\"]", str) != 1) { // ler at� o fechamento das aspas
             strcpy(str, "");
         }
         getchar(); // ignorar aspas fechando
     } else if(R != EOF) { // vc tá tentando ler uma string que não tá entre aspas! Fazer leitura normal %s então...
+    } else if(R != EOF) { // vc t� tentando ler uma string que n�o t� entre aspas! Fazer leitura normal %s ent�o...
         str[0] = R;
         scanf("%s", &str[1]);
     } else { // EOF
