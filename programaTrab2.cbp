@@ -34,7 +34,7 @@
 		<Unit filename="funcoes.c">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="funcoes.h" />
+		<Unit filename="headers/funcoes.h" />
 		<Unit filename="main.c">
 			<Option compilerVar="CC" />
 		</Unit>
